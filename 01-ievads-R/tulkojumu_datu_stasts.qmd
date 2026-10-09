@@ -1,0 +1,518 @@
+---
+title: "Ievads R un ggplot2: Latvijā izdotās tulkotās grāmatas, 1991–2025"
+author: ""
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    code-fold: false
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Nodarbības mērķis
+
+Iepazīsim R un RStudio, strādājot ar reālu datu kopu par Latvijā izdotām grāmatām no 1991. līdz 2025. gadam. Sāksim ar dažām vienkāršām R komandām, pēc tam ielasīsim datus, uzdosim tiem jautājumus un atbildes arvien biežāk attēlosim ar `ggplot2`.
+
+## 1. Iesildīšanās: pirmās R komandas
+
+R var izmantot kā kalkulatoru.
+
+```{r}
+2 + 2
+```
+
+Rezultātu var saglabāt objektā. Piešķiršanai R bieži izmanto `<-`.
+
+```{r}
+gads <- 2025
+gads
+```
+Aprēķinām gadu starpību.
+
+```{r}
+sakuma_gads <- 1991
+beigu_gads <- 2025
+
+beigu_gads - sakuma_gads
+```
+
+Vairākas vērtības var apvienot vektorā ar funkciju `c()`.
+
+```{r}
+valodas <- c("Angļu", "Vācu", "Franču")
+valodas
+```
+
+### Pamēģini
+
+Nomaini vērtības un izpildi komandas vēlreiz. Izveido objektu `mans_gads`, kurā saglabā kādu paša izvēlētu gadu. Izveido arī trīs valodu vektoru.
+
+Lai izveidotu jaunu šūnu tepat zemāk, spied taustiņu kombināciju Ctrl + Alt + I (Windows)
+
+
+## 2. Pakotnes
+
+Nodarbībā izmantosim `tidyverse` pakotņu kopu. Tajā ietilpst gan datu apstrādes rīki (`dplyr`), gan vizualizācijas pakotne `ggplot2`.
+
+Ja `tidyverse` datorā vēl nav instalēts, instalēšana jāveic vienu reizi:
+
+```{r eval=FALSE}
+install.packages("tidyverse")
+```
+
+Katras jaunas R sesijas sākumā pakotne jāielādē:
+
+```{r}
+library(tidyverse)
+```
+
+## 3. Datu ielāde
+
+Pieņemam, ka projekta mapē ir apakšmape `data`, kurā atrodas fails `tulkojumi.csv`.
+
+Tā kā fails ir atdalīts ar semikoliem, izmantojam `read_csv2()`.
+
+```{r}
+tulkojumi <- read_csv2("data/tulkojumi.csv")
+```
+
+Apskatām, ko esam ielasījuši.
+
+```{r}
+dim(tulkojumi)
+```
+
+```{r}
+names(tulkojumi)
+```
+
+```{r}
+glimpse(tulkojumi)
+```
+
+RStudio datu skatā tabulu var atvērt ar:
+
+```{r eval=FALSE}
+View(tulkojumi)
+```
+
+**Jautājumi:** Ko datu kopā nozīmē rinda? Ko nozīmē kolonna? Cik rindu un kolonnu ir tabulā?
+
+## 4. Atlasām un filtrējam
+
+Ar `select()` izvēlamies kolonnas.
+
+```{r}
+tulkojumi |>
+  select(gads, nosaukums, valoda, originala_valoda, izdevejs)
+```
+
+Ar `filter()` izvēlamies rindas, kas atbilst nosacījumam.
+
+```{r}
+tulkojumi |>
+  filter(gads == 2025) |>
+  select(gads, nosaukums, originala_valoda, izdevejs)
+```
+
+```{r}
+tulkojumi |>
+  filter(originala_valoda == "Zviedru") |>
+  select(gads, nosaukums, valoda, izdevejs)
+```
+
+`|>` var lasīt kā **"un tad"**: paņem datus **un tad** filtrē **un tad** atlasi vajadzīgās kolonnas.
+
+## 5. Tulkojumu valodas
+
+### No cik valodām tulkotas grāmatas?
+
+```{r}
+tulkojumi |>
+  summarise(valodu_skaits = n_distinct(originala_valoda))
+```
+
+Pārrunājam: vai kategorija `Vairākās` būtu uzskatāma par valodu? Ko īsti nozīmē iegūtais skaitlis?
+
+### No kurām valodām ir visvairāk tulkojumu?
+
+Vispirms izveidojam tabulu.
+
+```{r}
+top_valodas <- tulkojumi |>
+  count(originala_valoda, name = "skaits", sort = TRUE)
+
+top_valodas
+```
+
+79 kategorijas vienā diagrammā būtu grūti salasāmas, tāpēc vizualizējam 15 biežākās.
+
+```{r}
+top_valodas |>
+  slice_head(n = 15) |>
+  ggplot(aes(x = skaits, y = reorder(originala_valoda, skaits))) +
+  geom_col() +
+  labs(
+    title = "Biežākās tulkojumu oriģinālvalodas",
+    x = NULL,
+    y = "Izdevumu skaits"
+  )
+```
+
+### No kurām valodām visvairāk tulkots latviešu valodā?
+
+```{r}
+tulkojumi |>
+  filter(valoda == "Latviešu") |>
+  count(originala_valoda, name = "skaits", sort = TRUE) |>
+  slice_head(n = 15) |>
+  ggplot(aes(x = skaits, y = reorder(originala_valoda, skaits))) +
+  geom_col() +
+  labs(
+    title = "Biežākās oriģinālvalodas tulkojumiem latviešu valodā",
+    x = NULL,
+    y = "Izdevumu skaits"
+  )
+```
+
+### No kurām valodām visvairāk tulkots krievu valodā?
+
+```{r}
+tulkojumi |>
+  filter(valoda == "Krievu") |>
+  count(originala_valoda, name = "skaits", sort = TRUE) |>
+  slice_head(n = 15) |>
+  ggplot(aes(x = skaits, y = reorder(originala_valoda, skaits))) +
+  geom_col() +
+  labs(
+    title = "Biežākās oriģinālvalodas tulkojumiem krievu valodā",
+    x = NULL,
+    y = "Izdevumu skaits"
+  )
+```
+
+## 6. Izdevēji
+
+### Cik izdevēju ir izdevuši tulkotas grāmatas?
+
+```{r}
+tulkojumi |>
+  filter(izdevejs != "") |>
+  summarise(izdeveju_skaits = n_distinct(izdevejs))
+```
+
+### Kuri ir lielākie tulkoto grāmatu izdevēji?
+
+```{r}
+top_izdeveji <- tulkojumi |>
+  filter(izdevejs != "") |>
+  count(izdevejs, name = "skaits", sort = TRUE) |>
+  slice_head(n = 15)
+
+top_izdeveji
+```
+
+```{r}
+top_izdeveji |>
+  ggplot(aes(x = skaits, y = reorder(izdevejs, skaits))) +
+  geom_col() +
+  labs(
+    title = "Lielākie tulkoto grāmatu izdevēji",
+    x = NULL,
+    y = "Izdevumu skaits"
+  )
+```
+
+### No kurām valodām tulko lielākie izdevēji?
+
+Lai diagramma būtu pārskatāma, izvēlamies piecus lielākos izdevējus un piecas biežākās oriģinālvalodas viņu izdevumos.
+
+```{r}
+top5_izdeveji <- top_izdeveji |>
+  slice_head(n = 5) |>
+  pull(izdevejs)
+
+top5_valodas <- tulkojumi |>
+  filter(izdevejs %in% top5_izdeveji) |>
+  count(originala_valoda, name = "skaits", sort = TRUE) |>
+  slice_head(n = 5) |>
+  pull(originala_valoda)
+```
+
+```{r}
+tulkojumi |>
+  filter(
+    izdevejs %in% top5_izdeveji,
+    originala_valoda %in% top5_valodas
+  ) |>
+  count(izdevejs, originala_valoda, name = "skaits") |>
+  ggplot(aes(x = izdevejs, y = skaits, fill = originala_valoda)) +
+  geom_col() +
+  labs(
+    title = "No kurām valodām tulko lielākie izdevēji?",
+    x = NULL,
+    y = "Izdevumu skaits",
+    fill = "Oriģinālvaloda"
+  ) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+**Pārrunājam:** Ko šī diagramma ļauj salīdzināt? Ko tā slēpj, jo esam izvēlējušies tikai piecas valodas?
+
+## 7. Tulkojumi laika gaitā
+
+### Cik tulkoto grāmatu izdots no 1991. līdz 2025. gadam?
+
+```{r}
+tulkojumi |>
+  summarise(izdevumu_skaits = n())
+```
+
+### Kāds ir izdevumu sadalījums pa gadiem?
+
+```{r}
+pa_gadiem <- tulkojumi |>
+  count(gads, name = "skaits")
+```
+
+```{r}
+pa_gadiem |>
+  ggplot(aes(x = gads, y = skaits)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Tulkoto izdevumu skaits, 1991–2025",
+    x = "Gads",
+    y = "Izdevumu skaits"
+  )
+```
+
+### Kā mainās biežākās tulkojumu valodas?
+
+Izvēlamies piecas biežākās oriģinālvalodas visā periodā.
+
+```{r}
+top5_valodas_kopa <- tulkojumi |>
+  count(originala_valoda, name = "skaits", sort = TRUE) |>
+  filter(originala_valoda != "Vairākās") |>
+  slice_head(n = 5) |>
+  pull(originala_valoda)
+```
+
+```{r}
+tulkojumi |>
+  filter(originala_valoda %in% top5_valodas_kopa) |>
+  count(gads, originala_valoda, name = "skaits") |>
+  ggplot(aes(x = gads, y = skaits, color = originala_valoda)) +
+  geom_line() +
+  labs(
+    title = "Biežākās tulkojumu oriģinālvalodas laika gaitā",
+    x = "Gads",
+    y = "Izdevumu skaits",
+    color = "Oriģinālvaloda"
+  )
+```
+
+**Jautājums:** Vai visas valodas laika gaitā uzvedas līdzīgi? Kur redzamas pārmaiņas?
+
+### Tās pašas tendences mazajās diagrammās
+
+Ja vienā diagrammā ir vairākas līnijas, tās var būt grūti salīdzināt. `facet_wrap()` sadala vienu vizualizāciju vairākās mazās diagrammās — pa vienai katrai oriģinālvalodai.
+
+Pie piecām biežākajām oriģinālvalodām pievienojam arī ukraiņu valodu. Tā nav starp biežākajām valodām visā periodā, taču varam pārbaudīt hipotēzi, vai tās nozīme ir pieaugusi tieši pēdējos gados.
+
+```{r}
+valodas_laika_analizei <- c(
+  top5_valodas_kopa,
+  "Ukraiņu"
+)
+```
+
+```{r}
+tulkojumi |>
+  filter(originala_valoda %in% valodas_laika_analizei) |>
+  count(
+    gads,
+    originala_valoda,
+    name = "skaits"
+  ) |>
+  ggplot(aes(x = gads, y = skaits)) +
+  geom_line() +
+  facet_wrap(~ originala_valoda) +
+  labs(
+    title = "Tulkojumu oriģinālvalodas laika gaitā",
+    subtitle = "Piecas biežākās oriģinālvalodas un ukraiņu valoda",
+    x = "Gads",
+    y = "Izdevumu skaits"
+  ) +
+  theme_minimal()
+```
+
+**Pārrunājam:** Ko ir vieglāk ieraudzīt mazajās diagrammās nekā diagrammā ar vairākām līnijām? Vai visā periodā biežākās tulkojumu valodas ir tās pašas, kuru nozīme pieaug pēdējos gados? Ko parāda ukraiņu valodas piemērs?
+
+## 8. Par ko ir tulkotās grāmatas?
+
+### Kāds ir sadalījums pa tematiskajām grupām?
+
+```{r}
+tulkojumi |>
+  filter(tematiska_grupa != "") |>
+  count(tematiska_grupa, name = "skaits", sort = TRUE) |>
+  ggplot(aes(x = skaits, y = reorder(tematiska_grupa, skaits))) +
+  geom_col() +
+  labs(
+    title = "Tulkoto grāmatu tematiskās grupas",
+    x = NULL,
+    y = "Izdevumu skaits"
+  )
+```
+
+### Kāda daļa tulkoto grāmatu paredzēta bērniem?
+
+Šajā analīzē pie bērnu auditorijai paredzētiem izdevumiem pieskaitām četras tematiskās grupas:
+
+- `Bērnu daiļliteratūra`
+- `Bērnu populārzinātniskā literatūra`
+- `Bērnu reliģiskā literatūra`
+- `Skolas mācību literatūra`
+
+Izveidojam jaunu mainīgo `auditorija`.
+
+```{r}
+bernu_grupas <- c(
+  "Bērnu daiļliteratūra",
+  "Bērnu populārzinātniskā literatūra",
+  "Bērnu reliģiskā literatūra",
+  "Skolas mācību literatūra"
+)
+
+auditorija <- tulkojumi |>
+  mutate(
+    auditorija = if_else(
+      tematiska_grupa %in% bernu_grupas,
+      "Bērniem",
+      "Pārējie izdevumi"
+    )
+  ) |>
+  count(auditorija, name = "skaits") |>
+  mutate(procenti = skaits / sum(skaits) * 100)
+
+auditorija
+```
+
+```{r}
+auditorija |>
+  ggplot(aes(x = auditorija, y = skaits, fill = auditorija)) +
+  geom_col(show.legend = FALSE) +
+  labs(
+    title = "Cik liela daļa tulkoto grāmatu paredzēta bērniem?",
+    x = NULL,
+    y = "Izdevumu skaits"
+  )
+```
+
+
+## 9. Ko mēs šodien izdarījām?
+
+No vienas datu kopas nonācām līdz vairākiem pētnieciskiem jautājumiem. Izmantojām:
+
+- objektus un `<-`;
+- funkcijas;
+- `|>`;
+- `select()` un `filter()`;
+- `count()` un `summarise()`;
+- `n_distinct()`;
+- `mutate()`;
+- `ggplot()`, `aes()`, `geom_col()`, `geom_line()` un `facet_wrap()`.
+
+Svarīgākais princips: **vispirms formulējam jautājumu, tad izvēlamies darbības un vizualizāciju, kas palīdz uz to atbildēt.**
+
+## 10. Patstāvīgais uzdevums
+
+### Reliģiskās literatūras tulkojumi
+
+Izpēti tulkoto reliģisko literatūru. Šajā uzdevumā pie reliģiskās literatūras pieskaitām divas tematiskās grupas:
+
+- `Reliģiskā literatūra`
+- `Bērnu reliģiskā literatūra`
+
+Vispirms izveido datu apakškopu, kurā ir tikai šo divu tematisko grupu izdevumi.
+
+```{r eval=FALSE}
+religiska_literatura <- tulkojumi |>
+  filter(
+    tematiska_grupa %in% c(
+      "Reliģiskā literatūra",
+      "Bērnu reliģiskā literatūra"
+    )
+  )
+```
+
+Izmantojot `religiska_literatura`, izveido **trīs diagrammas**.
+
+### 1. Lielākie reliģiskās literatūras izdevēji
+
+- Saskaiti izdevumus pēc izdevēja.
+- Izvēlies 10 lielākos izdevējus.
+- Izveido horizontālu joslu diagrammu.
+- Sakārto izdevējus pēc izdevumu skaita.
+- Pievieno diagrammas virsrakstu un asu nosaukumus.
+
+Tekstuāls palīgs koda sastādīšanai: 
+Izveido jaunu koda šūnu Ctrl+Alt+I (Windows).
+Pēc vajadzības skaties, kā konstruētas līdzīgas diagrammas šajā burtnīcā.
+Vienu koda šūnu izpildīt un labot daudz reižu.
+
+1) Jaunajā koda šūnā raksti jaunā objekta nosaukumu religiska_literatura, tad |>
+2) Ar funkciju "filter" izfiltrē ārā kolonnas, kurās nav aizpildīts izdevēja lauks; to noformulējam šādi: (izdevejs != ""), tad |>
+3) Ar funkciju "count" saskaiti kolonnas "izdevejs" nosaukumus, iedod kolonnai nosaukumu "skaits" un sakārto dilstošā secībā: count(izdevejs, name = "skaits", sort = TRUE), tad |>
+4) Atlasi tikai top 10 ar slice_head funkciju, tad |>
+5) Sāc rakstīt ggplot
+6) Vispirms nodefinēsi aes(): uz x ass liec izdevumu skaitu, bet uz y ass izdevēju;
+7) ja vienkārši norādīsi "izdevejs" y asī, tad izdevēji būs alfabētiskā secībā.
+Lai izdevējus sakārtotu dilstošā secībā pēc skaita, izmanto funkciju reorder(izdevejs, skaits); tad +
+8) Izvēlies geom_col(), tad +
+9) Aizpildi "labs" daļu - kā sauksies virsraksts, x ass, y ass; tad +
+10) Nodefinē estētiku, piemēram, theme_minimal() vai kaut ko citu (skat R mācību vārdnīcā, kādas tēmas vēl ir).
+
+
+### 2. Reliģiskās literatūras izdevumu skaits pa gadiem
+
+- Saskaiti izdevumus katrā gadā.
+- Izveido līniju diagrammu.
+- Uz x ass attēlo gadu, uz y ass — izdevumu skaitu.
+- Pievieno diagrammas virsrakstu un asu nosaukumus.
+
+Tekstuāls palīgs koda sastādīšanai:
+1) Izveido jaunu koda šūnu.
+2) Raksti datu objekta nosaukumu religiska_literatura, tad |>
+3) Izmanto "count" funkciju, lai saskaitītu kolonnu "gads"; šoreiz neizmanto sort; tad |>
+4) Sākam ggplot;
+5) Norādām, ka x ass būs gads, y ass - skaits, tad +
+6) Izvēlamies geom_line(), tad +
+7) Ar funkciju "labs" nodefinējam diagrammas nosaukumu, x un y asu nosaukums, tad +
+8) Pievienojam izskata tēmu.
+
+### 3. Reliģiskā literatūra un bērnu reliģiskā literatūra
+
+- Saskaiti izdevumus katrā gadā un tematiskajā grupā.
+- Izveido līniju diagrammu.
+- Abas tematiskās grupas attēlo ar atšķirīgas krāsas līnijām.
+- Pievieno diagrammas virsrakstu, asu un leģendas nosaukumus.
+
+Tekstuāls palīgs koda sastādīšanai:
+1) Izveido jaunu šūnu.
+2) Ar funkciju "count" saskaiti "gads" un "tematiska_grupa"; nodefinē, ka kolonnas name būs "skaits", tad |>
+3) Sāc rakstīt ggplot.
+4) Nodefinē, ka x būs gads, bet y būs skaits, savukārt color būs tematiska_grupa); tad +
+5) Diagrammas veids būs geom_line(), tad +
+6) "labs" segmentā raksti diagrammas, x un y asu nosaukumu, kā arī color (leģendas) nosaukumu, tad +
+7) Nodefinē izskata tēmu.
+
+## Atbildes atrodamas arī .R skripta failā "rel-lit-atbildes.R"
+
+

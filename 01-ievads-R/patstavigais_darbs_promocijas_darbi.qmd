@@ -1,0 +1,36 @@
+---
+title: "Patstāvīgais darbs: promocijas darbu kopsavilkumu datu stāsts"
+author: ""
+format:
+  html:
+    toc: true
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Uzdevums
+
+Izveido **HTML datu stāstu** par promocijas darbu kopsavilkumu datiem. Pats/pati formulē pētnieciskos jautājumus, izvēlies datu apstrādes darbības un piemērotas vizualizācijas.
+
+Šajā uzdevumā **drīkst izmantot valodas modeli** kā konsultantu: lūgt palīdzību formulēt jautājumus, izveidot vai labot R kodu, izskaidrot kļūdas un apspriest vizualizācijas. Tomēr pārbaudi piedāvāto kodu, izpildi to savā RStudio projektā un pārliecinies, ka saproti, ko tas dara.
+
+Gala rezultātam jābūt Quarto dokumentam, kuru vari renderēt kā patstāvīgu `.html` failu.
+
+## Dati
+
+Datu fails `promocijas-darbi.csv` atrodas projekta mapē `data`.
+
+```{r}
+library(tidyverse)
+
+promocijas_darbi <- read_csv2("data/promocijas-darbi.csv")
+
+glimpse(promocijas_darbi)
+```
+
+## Datu stāsts
+
+<!-- Turpini darbu šeit. Formulē jautājumus, raksti īsus paskaidrojumus un pievieno R koda šūnas ar analīzi un vizualizācijām. -->
