@@ -1,0 +1,551 @@
+{
+  "geographical_entities": [
+    {
+      "name": "Rīga",
+      "category": "GPE",
+      "evidence": "Rīgā"
+    },
+    {
+      "name": "Raudupe",
+      "category": "GPE",
+      "evidence": "Raudupes"
+    },
+    {
+      "name": "Zvirgzdu muiža",
+      "category": "GPE",
+      "evidence": "Zvirgzdu muižas"
+    },
+    {
+      "name": "Latvija",
+      "category": "GPE",
+      "evidence": "Latviju"
+    },
+    {
+      "name": "Baltija",
+      "category": "LOC",
+      "evidence": "Baltijā"
+    },
+    {
+      "name": "Reina",
+      "category": "LOC",
+      "evidence": "Reinas"
+    },
+    {
+      "name": "Vilku purvs",
+      "category": "LOC",
+      "evidence": "Vilku-purva"
+    },
+    {
+      "name": "Zvirgzdupe",
+      "category": "LOC",
+      "evidence": "Zvirgzdupē"
+    },
+    {
+      "name": "Graustu purvs",
+      "category": "LOC",
+      "evidence": "Graustu purvs"
+    },
+    {
+      "name": "Itālija",
+      "category": "GPE",
+      "evidence": "Italijā"
+    },
+    {
+      "name": "Grieķija",
+      "category": "GPE",
+      "evidence": "Grieķiju"
+    },
+    {
+      "name": "Palestīna",
+      "category": "GPE",
+      "evidence": "Palestinas"
+    },
+    {
+      "name": "Āfrika",
+      "category": "LOC",
+      "evidence": "Afrikas"
+    },
+    {
+      "name": "Melnā jūra",
+      "category": "LOC",
+      "evidence": "Melnās jūŗas"
+    },
+    {
+      "name": "Kaukāzs",
+      "category": "LOC",
+      "evidence": "Kaukaza"
+    },
+    {
+      "name": "Roma",
+      "category": "GPE",
+      "evidence": "Romas"
+    },
+    {
+      "name": "Trāķija",
+      "category": "LOC",
+      "evidence": "Traķijas"
+    },
+    {
+      "name": "Atēnas",
+      "category": "GPE",
+      "evidence": "Atenās"
+    },
+    {
+      "name": "Šveice",
+      "category": "GPE",
+      "evidence": "Žveicijas"
+    },
+    {
+      "name": "Neapole",
+      "category": "GPE",
+      "evidence": "Neapoles"
+    },
+    {
+      "name": "Sīnājs",
+      "category": "LOC",
+      "evidence": "Zinaja"
+    },
+    {
+      "name": "Amerika",
+      "category": "LOC",
+      "evidence": "Amerikas"
+    },
+    {
+      "name": "Krievija",
+      "category": "GPE",
+      "evidence": "Krievijā"
+    },
+    {
+      "name": "Jelgava",
+      "category": "GPE",
+      "evidence": "Jelgava"
+    },
+    {
+      "name": "Sibīrija",
+      "category": "LOC",
+      "evidence": "Sibīriju"
+    },
+    {
+      "name": "Ķīna",
+      "category": "GPE",
+      "evidence": "Ķīnā"
+    },
+    {
+      "name": "Japāna",
+      "category": "GPE",
+      "evidence": "Japānā"
+    },
+    {
+      "name": "Daugava",
+      "category": "LOC",
+      "evidence": "Daugava"
+    },
+    {
+      "name": "Donava",
+      "category": "LOC",
+      "evidence": "Donavu"
+    },
+    {
+      "name": "Troja",
+      "category": "GPE",
+      "evidence": "Trojas"
+    }
+  ],
+  "spatial_terms": [
+    {
+      "lemma": "iela",
+      "category": "URBAN",
+      "evidence": "ielā"
+    },
+    {
+      "lemma": "jūra",
+      "category": "NATURAL",
+      "evidence": "jūras"
+    },
+    {
+      "lemma": "zeme",
+      "category": "NATURAL",
+      "evidence": "zemē"
+    },
+    {
+      "lemma": "krasts",
+      "category": "NATURAL",
+      "evidence": "krasti"
+    },
+    {
+      "lemma": "baznīca",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "baznīcu"
+    },
+    {
+      "lemma": "māja",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "mājas"
+    },
+    {
+      "lemma": "ēka",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "ēkas"
+    },
+    {
+      "lemma": "pagasta nams",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "pagasta nams"
+    },
+    {
+      "lemma": "skola",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "skolas"
+    },
+    {
+      "lemma": "ārzemes",
+      "category": "SPATIAL_OTHER",
+      "evidence": "ārzemēs"
+    },
+    {
+      "lemma": "pagasts",
+      "category": "RURAL",
+      "evidence": "pagastam"
+    },
+    {
+      "lemma": "biedrības nams",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "biedrības nams"
+    },
+    {
+      "lemma": "muiža",
+      "category": "RURAL",
+      "evidence": "muižai"
+    },
+    {
+      "lemma": "istaba",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "istabas"
+    },
+    {
+      "lemma": "ceļš",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "ceļu"
+    },
+    {
+      "lemma": "pagalms",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "pagalma"
+    },
+    {
+      "lemma": "durvis",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "durvis"
+    },
+    {
+      "lemma": "lielceļš",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "lielceļa"
+    },
+    {
+      "lemma": "līdums",
+      "category": "RURAL",
+      "evidence": "līdumu"
+    },
+    {
+      "lemma": "mežs",
+      "category": "NATURAL",
+      "evidence": "meža"
+    },
+    {
+      "lemma": "sils",
+      "category": "NATURAL",
+      "evidence": "sila"
+    },
+    {
+      "lemma": "dārzs",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "dārzā"
+    },
+    {
+      "lemma": "tīrums",
+      "category": "RURAL",
+      "evidence": "tīrumam"
+    },
+    {
+      "lemma": "kalns",
+      "category": "NATURAL",
+      "evidence": "kalna"
+    },
+    {
+      "lemma": "tilts",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "tilta"
+    },
+    {
+      "lemma": "purvs",
+      "category": "NATURAL",
+      "evidence": "purvā"
+    },
+    {
+      "lemma": "ūdens",
+      "category": "NATURAL",
+      "evidence": "ūdens"
+    },
+    {
+      "lemma": "krogs",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "kroga"
+    },
+    {
+      "lemma": "upe",
+      "category": "NATURAL",
+      "evidence": "upē"
+    },
+    {
+      "lemma": "trepes",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "trepēm"
+    },
+    {
+      "lemma": "augstskola",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "augstskolu"
+    },
+    {
+      "lemma": "ģimnāzija",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "ģimnāziju"
+    },
+    {
+      "lemma": "grāvis",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "grāvji"
+    },
+    {
+      "lemma": "lauks",
+      "category": "RURAL",
+      "evidence": "lauku"
+    },
+    {
+      "lemma": "dambis",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "dambis"
+    },
+    {
+      "lemma": "dzirnavas",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "dzirnavām"
+    },
+    {
+      "lemma": "kambaris",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "kambarīti"
+    },
+    {
+      "lemma": "zāle",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "zālē"
+    },
+    {
+      "lemma": "koridors",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "koridorī"
+    },
+    {
+      "lemma": "galvaspilsēta",
+      "category": "URBAN",
+      "evidence": "galvas pilsētu"
+    },
+    {
+      "lemma": "stiga",
+      "category": "NATURAL",
+      "evidence": "stigu"
+    },
+    {
+      "lemma": "šķūnis",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "šķūnītis"
+    },
+    {
+      "lemma": "klēts",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "klētiņa"
+    },
+    {
+      "lemma": "kūts",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "kūtīm"
+    },
+    {
+      "lemma": "stallis",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "stallī"
+    },
+    {
+      "lemma": "brūzis",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "alusbrūža"
+    },
+    {
+      "lemma": "dedzinātava",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "dedzinātavas"
+    },
+    {
+      "lemma": "pirts",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "pirtiņā"
+    },
+    {
+      "lemma": "pils",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "pili"
+    },
+    {
+      "lemma": "pļava",
+      "category": "NATURAL",
+      "evidence": "pļavu"
+    },
+    {
+      "lemma": "ciems",
+      "category": "RURAL",
+      "evidence": "ciema"
+    },
+    {
+      "lemma": "rija",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "rijas"
+    },
+    {
+      "lemma": "druva",
+      "category": "RURAL",
+      "evidence": "druvam"
+    },
+    {
+      "lemma": "birsts",
+      "category": "NATURAL",
+      "evidence": "birstiņu"
+    },
+    {
+      "lemma": "gārša",
+      "category": "NATURAL",
+      "evidence": "gāršas"
+    },
+    {
+      "lemma": "stacija",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "stacijai"
+    },
+    {
+      "lemma": "dzelzceļš",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "dzelzsceļa"
+    },
+    {
+      "lemma": "fabrika",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "fabriku"
+    },
+    {
+      "lemma": "vasarnīca",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "vasarnica"
+    },
+    {
+      "lemma": "klints",
+      "category": "NATURAL",
+      "evidence": "klintis"
+    },
+    {
+      "lemma": "sādža",
+      "category": "RURAL",
+      "evidence": "sādžā"
+    },
+    {
+      "lemma": "būda",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "būda"
+    },
+    {
+      "lemma": "parks",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "parka"
+    },
+    {
+      "lemma": "ezers",
+      "category": "NATURAL",
+      "evidence": "ezera"
+    },
+    {
+      "lemma": "veranda",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "verandas"
+    },
+    {
+      "lemma": "kapi",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "kapos"
+    },
+    {
+      "lemma": "kapsēta",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "kapsētas"
+    },
+    {
+      "lemma": "smēde",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "smēdes"
+    },
+    {
+      "lemma": "birzs",
+      "category": "NATURAL",
+      "evidence": "birzs"
+    },
+    {
+      "lemma": "ganības",
+      "category": "RURAL",
+      "evidence": "ganības"
+    },
+    {
+      "lemma": "pilsēta",
+      "category": "URBAN",
+      "evidence": "pilsētā"
+    },
+    {
+      "lemma": "skatuve",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "skatuves"
+    },
+    {
+      "lemma": "teātris",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "teātrī"
+    },
+    {
+      "lemma": "viesnīca",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "viesnīcā"
+    },
+    {
+      "lemma": "laidars",
+      "category": "RURAL",
+      "evidence": "laidaros"
+    },
+    {
+      "lemma": "cietums",
+      "category": "BUILT_ENVIRONMENT",
+      "evidence": "cietumā"
+    },
+    {
+      "lemma": "sala",
+      "category": "NATURAL",
+      "evidence": "salas"
+    },
+    {
+      "lemma": "līcis",
+      "category": "NATURAL",
+      "evidence": "līci"
+    },
+    {
+      "lemma": "ieleja",
+      "category": "NATURAL",
+      "evidence": "ieleju"
+    }
+  ]
+}
