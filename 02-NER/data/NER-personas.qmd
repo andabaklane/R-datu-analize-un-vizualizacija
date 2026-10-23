@@ -1,0 +1,540 @@
+---
+title: "*Named entity recognition* latviešu romānos: vispārīgi un personas"
+subtitle: "Praktiskā nodarbība RStudio · LatSenRom · NER un datu vizualizācija"
+lang: lv
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    code-fold: false
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+---
+
+## Ko pētīsim?
+
+Kāda veida nosauktās entītijas jeb entitātes atrodamas failā, kas marķēts ar klasisku NER (*named entities recognition*) algoritmu? Kura veida entītiju ir vairāk? 
+
+Cik bieži romānos pieminētas tieši personas? Cik daudz dažādu personu nosaukumu tajos sastopams? Vai romāni šajā ziņā ir līdzīgi? Un kā konkrēti varoņi parādās stāstījuma gaitā?
+
+Strādāsim ar **20 latviešu romānu izlasi**. Vispirms salīdzināsim romānus, pēc tam tuvāk aplūkosim Anšlava Eglīša *Līgavu medniekus*. Izmantosim automātiski atpazītus personu nosaukumus, kuros vienā personā nav apvienoti kopā dažādie iespējamie vārdu, uzvārdu vai iesauku varianti, tāpēc tas ir **aptuvens ieskats**, nevis pilnībā pārbaudīts personāžu reģistrs.
+
+## 1. Sagatavojam darba vidi
+
+Atveriet `NER.Rproj`. Ja nepieciešams, nākamajā rindā noņemiet `#`, lai instalētu pakotnes. Tas jādara tikai vienreiz.
+
+```{r}
+# install.packages(c("jsonlite", "dplyr", "purrr", "tidyr", "ggplot2", "readr", "stringr", "writexl"))
+```
+
+Koda blokus var izpildīt, spiežot zaļo bultiņu "Run Current Chunk". Ja vēlētos izpildīt tikai vienu rindiņu, varētu spiest Ctrl+Enter/ Command+Enter uz šīs rindiņas.
+
+```{r}
+library(jsonlite)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(stringr)
+
+# Dažas saskaņotas krāsas visai burtnīcai
+k_tirkizs <- "#169EAD"
+k_violets <- "#7955B7"
+k_korallis <- "#D85F83"
+k_zelts <- "#D8A441"
+
+theme_set(theme_minimal(base_size = 12))
+```
+
+Nākamā koda šūna pārbauda, vai visi 20 JSON faili atrodas projekta mapē `data/` (arī apakšmapē `data/romani/` drīkst būt).
+
+```{r}
+faili <- sort(list.files("data", pattern = "\\.json$", full.names = TRUE,
+                          recursive = TRUE))
+izlase <- read_csv("data/romanu_izlase.csv", show_col_types = FALSE,
+                  col_types = cols(id = col_character(), .default = col_guess()))
+
+failu_tabula <- tibble(
+  fails = faili,
+  id = str_match(basename(faili), "_([0-9]{5,8})_[^_]+_v[0-9]+\\.json$")[, 2]
+) |>
+  left_join(izlase, by = "id")
+
+if (length(faili) == 0) stop("Mapē data/ nav atrasts neviens JSON fails.")
+if (any(is.na(failu_tabula$id))) stop("Dažu failu nosaukumos nevar noteikt darba ID.")
+if (any(is.na(failu_tabula$nosaukums))) stop("Atrasts JSON, kas nav 20 romānu izlasē.")
+if (anyDuplicated(failu_tabula$id)) stop("Vienam darbam ir vairāki JSON faili.")
+if (nrow(failu_tabula) != 20) {
+  warning("Atrasti ", nrow(failu_tabula), " no 20 darbiem; pārbaudiet mapi data/.")
+}
+
+failu_tabula |> select(nosaukums, autors, gads)
+```
+
+## 2. Kā no romāna teksta iegūstam informāciju par personām?
+
+**JSON fails** satur pašu romāna tekstu un tam pievienotos automātiskās analīzes rezultātus. Teksts ir sadalīts teikumos un vārdos. Katram vārdam var būt pievienoti vairāki informācijas **lauki** — piemēram, sākotnējā vārdforma, pamatforma (*lemma*) un gramatiskās pazīmes. Atsevišķi ir norādīts, kurus teksta fragmentus programma atpazinusi kā personas, vietas, organizācijas un citas nosauktās entītijas (*named entities*).
+
+Katram laukam ir nosaukums. Lai iegūtu vajadzīgo informāciju, jāzina **ko meklējam**, **kur tas glabājas** un **ko vēlamies saskaitīt**.
+
+```{mermaid}
+flowchart TD
+    A["Romāna teksts JSON failā"] --> B["Vārdi ar anotācijām"]
+    A --> C["Atpazītie nosaukumi — NER"]
+    B --> D["Vārdforma: Epaltam<br/>Pamatforma: Epalts"]
+    C --> E["Teksta fragments: Epaltam<br/>Tips: person"]
+    D --> F["Sasaistām informāciju"]
+    E --> F
+    F --> G["Skaitām personu pieminējumus<br/>un dažādus nosaukumus"]
+    classDef source fill:#E8F4F6,stroke:#169EAD,color:#173B42
+    classDef morph fill:#E6F3EA,stroke:#40966E,color:#173B42
+    classDef ner fill:#F0E8F9,stroke:#7955B7,color:#34234C
+    classDef result fill:#FFF0E8,stroke:#D85F83,color:#492C37
+    class A,B source
+    class D morph
+    class C,E ner
+    class F,G result
+```
+
+Piemēram, meklējot personas, mums jāzina, ka šajā datu kopā personas tips ir **`person`**. Pēc tam varam izvēlēties, vai vēlamies iegūt personvārdu sarakstu, visas to sastopamības, atšķirīgos nosaukumus vai pieminējumu skaitu katrā romānā.
+
+Latviešu valodā īpaši noderīgas ir **lemmas**: *Pāvils*, *Pāvilam*, *Pāvilu* ir viena vārda dažādas locījuma formas. Savukārt vairāku vārdu nosaukumiem, piemēram, *Pāvils Epalts*, jāsavieno vairāku vārdu pamatformas.
+
+### Ieskatāmies, kā tas izpaužas konkrētā failā
+
+```{r}
+piemera_fails <- failu_tabula |>
+  filter(nosaukums == "Līgavu mednieki") |>
+  pull(fails)
+stopifnot(length(piemera_fails) == 1)
+piemers <- jsonlite::fromJSON(piemera_fails, simplifyVector = FALSE)
+
+# Kompakts pārskats: kādas informācijas grupas ir failā?
+tibble(
+  Datu_grupa = c("Dokumenta informācija", "Apstrādes apraksts",
+                 "Romāna teksts", "Anotētie teikumi"),
+  JSON_lauks = c("document_id", "processing", "data → text", "data → sentences")
+)
+```
+
+## 3. Izgūstam datus no 20 romāniem
+
+Funkcija secīgi atver katru JSON failu, atlasa atpazītās entītijas un iegūst to pamatformas. Saglabājam arī romāna garumu tokenos, lai varētu salīdzināt dažāda garuma darbus. **Šis ir datu sagatavošanas solis:** galvenais ir saprast, kāda tabula no tā rodas. Soļa izpilde var prasīt vairākas minūtes.
+
+```{r}
+#| label: datu-izgusana
+izgut_ner <- function(fails, id, nosaukums, autors, gads) {
+  dok <- jsonlite::fromJSON(fails, simplifyVector = FALSE)
+  teikumi <- dok$data$sentences
+  # Dažos JSON failos teksta sākumā ir bibliogrāfiskie metadati.
+  # Atrodam to robežu pirmajos teikumos un izslēdzam no analīzes.
+  sakuma_paraugs <- head(teikumi, 5)
+  ir_metadati <- vapply(sakuma_paraugs, function(s) {
+    txt <- paste(vapply(s$tokens, function(t) as.character(t$form), character(1)),
+                 collapse = " ")
+    grepl("uriDom|workTitle|editionTitle|publicationDate|filename\\s*:",
+          txt, ignore.case = TRUE)
+  }, logical(1))
+  if (any(ir_metadati)) {
+    teikumi <- teikumi[-seq_len(max(which(ir_metadati)))]
+  }
+  tokenu_skaits <- sum(vapply(teikumi, function(s) length(s$tokens), integer(1)))
+
+  rindas <- purrr::map2(teikumi, seq_along(teikumi), function(s, i) {
+    if (length(s$ner) == 0) return(NULL)
+    purrr::map(s$ner, function(e) {
+      sak <- as.integer(e$start)
+      beig <- as.integer(e$end)
+      derigs <- length(sak) == 1 && length(beig) == 1 &&
+        !is.na(sak) && !is.na(beig) && sak >= 0 &&
+        beig > sak && beig <= length(s$tokens)
+      lemmas <- if (derigs) {
+        vapply(s$tokens[seq.int(sak + 1L, beig)], function(t) {
+          if (is.null(t$lemma) || length(t$lemma) == 0 ||
+              is.na(t$lemma) || !nzchar(as.character(t$lemma)))
+            as.character(t$form)
+          else as.character(t$lemma)
+        }, character(1))
+      } else character(0)
+      tibble(
+        id = id, darbs = nosaukums, autors = autors, gads = gads,
+        teikums = i, teikumu_skaits = length(teikumi),
+        tokenu_skaits = tokenu_skaits,
+        tips = as.character(e$label),
+        forma = as.character(e$text),
+        lemma = if (derigs) str_squish(str_to_lower(paste(lemmas, collapse = " ")))
+                else NA_character_
+      )
+    }) |> bind_rows()
+  }) |> bind_rows()
+  rindas
+}
+
+# Atlase no tabulas: tikai pieci funkcijai nepieciešamie lauki.
+entitijas <- purrr::pmap_dfr(
+  failu_tabula |> select(fails, id, nosaukums, autors, gads),
+  izgut_ner
+)
+
+entitijas |>
+  filter(darbs == "Līgavu mednieki", tips == "person",
+         !is.na(lemma), str_detect(forma, "[[:alpha:]]")) |>
+  select(darbs, tips, forma, lemma) |>
+  distinct() |>
+  slice_head(n = 12)
+```
+
+Pārbaudām, vai dažām entītijām neizdevās iegūt pamatformu.
+
+```{r}
+entitijas |>
+  summarise(
+    atpazitie_pieminejumi = n(),
+    bez_pamatformas = sum(is.na(lemma))
+  )
+```
+
+## 4. Kādas entītijas sastopamas romānos?
+
+Vispirms noskaidrosim, kādus entītiju tipus programma ir atpazinusi mūsu 20 romānos.
+
+```{r}
+tipu_skaits <- entitijas |>
+  count(tips, sort = TRUE)
+
+tipu_skaits
+
+ggplot(tipu_skaits, aes(x = reorder(tips, n), y = n)) +
+  geom_col(fill = k_tirkizs, width = 0.72) +
+  coord_flip() +
+  labs(title = "Kura tipa entītijas visbiežāk pieminētas romānu tekstos?",
+       subtitle = "Visi pieminējumi 20 romānos",
+       x = "Entītijas tips", y = "Pieminējumu skaits")
+```
+
+### Salīdzinām romānus divos veidos
+
+**Pirmā siltuma karte:** cik bieži katra tipa entītijas pieminētas dažādos romānos? Lai romānu garums netraucētu salīdzinājumam, skaitām **pieminējumus uz 10 000 tokeniem**.
+
+**Otrā siltuma karte:** cik daudz **dažādu nosaukumu** katrā romānā atpazīts? Šeit rādām absolūto skaitu. Tas palīdz ieraudzīt nosaukumu daudzveidību, lai gan garākos romānos tās parasti būs vairāk.
+
+```{r}
+# Visas romānu un kategoriju kombinācijas, arī tās, kur nav pieminējumu.
+tipu_pa_darbiem <- entitijas |>
+  count(darbs, tips, tokenu_skaits, name = "pieminejumi") |>
+  mutate(uz_10000 = 10000 * pieminejumi / tokenu_skaits)
+
+unikalie_pa_darbiem <- entitijas |>
+  group_by(darbs, tips) |>
+  summarise(atskirigi = n_distinct(lemma, na.rm = TRUE), .groups = "drop")
+
+romanu_seciba <- failu_tabula |>
+  arrange(gads, nosaukums) |>
+  pull(nosaukums)
+
+tipu_seciba <- tipu_skaits$tips
+
+tipu_pa_darbiem <- tipu_pa_darbiem |>
+  complete(darbs = romanu_seciba, tips = tipu_seciba,
+           fill = list(pieminejumi = 0, uz_10000 = 0)) |>
+  mutate(darbs = factor(darbs, levels = rev(romanu_seciba)),
+         tips = factor(tips, levels = tipu_seciba))
+
+unikalie_pa_darbiem <- unikalie_pa_darbiem |>
+  complete(darbs = romanu_seciba, tips = tipu_seciba,
+           fill = list(atskirigi = 0)) |>
+  mutate(darbs = factor(darbs, levels = rev(romanu_seciba)),
+         tips = factor(tips, levels = tipu_seciba))
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+# Kvadrātsaknes transformācija izceļ arī retākās kategorijas.
+ggplot(tipu_pa_darbiem, aes(x = tips, y = darbs, fill = uz_10000)) +
+  geom_tile(color = "white", linewidth = 0.45) +
+  scale_fill_gradient(low = "#F8EAF1", high = "#56328E",
+                      trans = "sqrt", name = "Pieminējumi\nuz 10 000 tokeniem") +
+  labs(title = "Cik bieži romānos piemin personas, vietas un citas entītijas?",
+       subtitle = "Pieminējumi uz 10 000 tekstvienībām · tumšāks tonis nozīmē biežāk",
+       x = "Entītijas tips", y = NULL) +
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_text(angle = 35, hjust = 1))
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+ggplot(unikalie_pa_darbiem, aes(x = tips, y = darbs, fill = atskirigi)) +
+  geom_tile(color = "white", linewidth = 0.45) +
+  scale_fill_gradient(low = "#E7F5F5", high = "#087E8B",
+                      trans = "sqrt", name = "Dažādu\nnosaukumu skaits") +
+  labs(title = "Cik daudz dažādu personu, vietu un citu nosaukumu sastopami romānos?",
+       subtitle = "Atšķirīgo nosaukumu skaits katrā romānā",
+       x = "Entītijas tips", y = NULL) +
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_text(angle = 35, hjust = 1))
+```
+
+★ **Pētnieka piezīme.** Šajā vingrinājumā atšķirīgus nosaukumus skaitām pēc automātiski iegūtajām pamatformām. Piemēram, *Epalts* un *Pāvils Epalts* pagaidām paliek divi atšķirīgi nosaukumi, lai gan var apzīmēt vienu personu.
+
+## 5. Cik daudz personu pieminēts 20 romānos?
+
+Tagad pievērsīsimies tikai personām (`person`). Vispirms saskaitīsim pieminējumus un dažādos personu nosaukumus visā izlasē, pēc tam — katrā romānā.
+
+```{r}
+personas <- entitijas |>
+  filter(tips == "person")
+
+personas |>
+  summarise(
+    personu_pieminejumi = n(),
+    atskirigi_personu_nosaukumi = n_distinct(lemma, na.rm = TRUE)
+  )
+```
+
+```{r}
+personas_pa_darbiem <- personas |>
+  group_by(id, darbs, autors, gads, tokenu_skaits) |>
+  summarise(
+    pieminejumi = n(),
+    atskirigi_nosaukumi = n_distinct(lemma, na.rm = TRUE),
+    nosaukumi_virs_5 = sum(table(lemma[!is.na(lemma)]) > 5),
+    .groups = "drop"
+  ) |>
+  mutate(pieminejumi_uz_10000 = 10000 * pieminejumi / tokenu_skaits) |>
+  arrange(desc(pieminejumi_uz_10000))
+
+personas_pa_darbiem |>
+  select(darbs, pieminejumi, atskirigi_nosaukumi,
+         nosaukumi_virs_5, pieminejumi_uz_10000)
+```
+
+
+
+```{r}
+#| fig-width: 9
+#| fig-height: 7
+ggplot(personas_pa_darbiem,
+       aes(x = reorder(darbs, atskirigi_nosaukumi),
+           y = atskirigi_nosaukumi)) +
+  geom_col(fill = k_violets, width = 0.75) +
+  coord_flip() +
+  labs(title = "Cik daudz dažādu personu pieminēts katrā romānā?",
+       subtitle = "Aptuvens rādītājs pēc atpazītajiem personu nosaukumiem",
+       x = NULL, y = "Dažādu personu nosaukumu skaits")
+```
+
+## 6. Kā romāni atšķiras? Histogrammas un kastu diagrammas
+
+Vai vairumā romānu sastopams līdzīgs personu skaits? Vai ir romāni, kas izceļas? Sākam ar **minimumu, maksimumu, vidējo un mediānu**.
+
+```{r}
+personas_pa_darbiem |>
+  summarise(
+    romanu_skaits = n(),
+    pieminejumi_min = min(pieminejumi),
+    pieminejumi_max = max(pieminejumi),
+    pieminejumi_videji = round(mean(pieminejumi), 1),
+    pieminejumi_mediana = median(pieminejumi),
+    personas_min = min(atskirigi_nosaukumi),
+    personas_max = max(atskirigi_nosaukumi),
+    personas_videji = round(mean(atskirigi_nosaukumi), 1),
+    personas_mediana = median(atskirigi_nosaukumi),
+    videji_nosaukumi_virs_5 = round(mean(nosaukumi_virs_5), 1)
+  )
+```
+
+### Kā lasīt histogrammu?
+
+**Katrs stabiņš šeit nav viens romāns.** Tas apvieno romānus, kuros ir līdzīgs pieminējumu vai personu nosaukumu skaits. Stabiņa augstums rāda, **cik romānu** ietilpst attiecīgajā intervālā.
+
+Nākamā palīgfunkcija virs katra stabiņa parāda **romānu skaitu**, bet stabiņa iekšpusē — **romānu nosaukumus**. Garākos nosaukumus diagrammā saīsinām, lai tie ietilptu stabiņā. Intervālus aprēķinām no mūsu datiem.
+
+```{r}
+zimet_histogrammu <- function(dati, kolonna, virsraksts, ass, krasa) {
+  h <- hist(dati[[kolonna]], breaks = "Sturges", plot = FALSE)
+  platums <- diff(h$breaks)[1]
+
+  # Katru romānu piesaistām tam pašam intervālam, kuru izmanto hist().
+  romani_intervalos <- dati |>
+    mutate(interv = cut(.data[[kolonna]], breaks = h$breaks,
+                        include.lowest = TRUE, right = TRUE),
+           interv_num = as.integer(interv),
+           iss_nosaukums = stringr::str_trunc(darbs, width = 21)) |>
+    filter(!is.na(interv_num)) |>
+    group_by(interv_num) |>
+    summarise(nosaukumi = paste(iss_nosaukums, collapse = "\n"),
+              .groups = "drop")
+
+  histogrammas_dati <- tibble(
+    interv_num = seq_along(h$counts),
+    vidus = h$mids,
+    skaits = h$counts
+  ) |>
+    left_join(romani_intervalos, by = "interv_num")
+
+  ggplot(histogrammas_dati, aes(x = vidus, y = skaits)) +
+    geom_col(width = platums, fill = krasa, color = "white", linewidth = 0.6) +
+    geom_text(aes(label = ifelse(skaits > 0, skaits, "")),
+              vjust = -0.45, size = 3.8) +
+    geom_text(aes(y = skaits / 2, label = nosaukumi),
+              color = "white", size = 2.65, lineheight = 1.05,
+              fontface = "plain", na.rm = TRUE) +
+    scale_x_continuous(breaks = h$breaks) +
+    scale_y_continuous(breaks = seq(0, max(h$counts) + 1, by = 1),
+                       expand = expansion(mult = c(0, 0.10))) +
+    coord_cartesian(ylim = c(0, max(h$counts) + 1.2), clip = "off") +
+    labs(title = virsraksts,
+         subtitle = "Katrā stabiņā — romāni ar līdzīgu vērtību; skaitlis virs tā — romānu skaits",
+         x = ass, y = "Romānu skaits") +
+    theme(axis.text.x = element_text(angle = 35, hjust = 1))
+}
+```
+
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+zimet_histogrammu(
+  personas_pa_darbiem, "pieminejumi",
+  "Cik atšķirīgs ir personu pieminējumu skaits romānos?",
+  "Personu pieminējumu skaits romānā", k_tirkizs
+)
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+zimet_histogrammu(
+  personas_pa_darbiem, "atskirigi_nosaukumi",
+  "Cik daudz dažādu personu mēdz būt pieminēts romānā?",
+  "Dažādu personu nosaukumu skaits romānā", k_violets
+)
+```
+
+### Kastu diagrammas: tipiskās vērtības un izņēmumi
+
+Kastu diagramma (*boxplot*) palīdz ieraudzīt vidējo daļu no vērtībām, mediānu un neparasti lielus vai mazus rezultātus. **Katrs punkts** apzīmē vienu no mūsu 20 romāniem.
+
+
+
+```{r}
+#| fig-width: 7
+#| fig-height: 5
+ggplot(personas_pa_darbiem, aes(x = "20 romāni", y = atskirigi_nosaukumi)) +
+  geom_boxplot(width = 0.35, fill = "#DDC9F4", outlier.shape = NA) +
+  geom_jitter(width = 0.09, size = 2.5, color = "#7955B7", alpha = 0.85) +
+  labs(title = "Cik ļoti atšķiras romānos pieminēto personu skaits?",
+       x = NULL, y = "Dažādu personu nosaukumu skaits")
+```
+
+Tagad aplūkosim tos personu nosaukumus, kuri katrā romānā atkārtojas **vairāk nekā piecas reizes**. Tas palīdz pietuvoties jautājumam par romāna personāžiem, ne tikai visām garāmejot pieminētajām personām.
+
+```{r}
+#| fig-width: 7
+#| fig-height: 5
+ggplot(personas_pa_darbiem, aes(x = "20 romāni", y = nosaukumi_virs_5)) +
+  geom_boxplot(width = 0.35, fill = "#DDC9F4", outlier.shape = NA) +
+  geom_jitter(width = 0.09, size = 2.5, color = "#7955B7", alpha = 0.85) +
+  labs(title = "Cik daudz romānos ir biežāk pieminētu personu?",
+       subtitle = "Personu nosaukumi, kas pieminēti vairāk nekā 5 reizes",
+       x = NULL, y = "Biežāk pieminētu personu nosaukumu skaits")
+```
+
+★ **Pētnieka piezīme.** Viena persona var būt nosaukta gan vārdā, gan uzvārdā, gan pilnā vārdā. Precīzākam personāžu skaitam šie varianti būtu jāapvieno.
+
+## 7. Viena romāna varoņi: *Līgavu mednieki*
+
+Tagad pārejam no 20 romānu salīdzinājuma pie viena darba. Kuri personu nosaukumi tajā pieminēti visbiežāk? Un kā mainās to klātbūtne romāna gaitā?
+
+```{r}
+izveletais_darbs <- "Līgavu mednieki"
+viena_darba_personas <- personas |>
+  filter(darbs == izveletais_darbs, !is.na(lemma))
+
+top20 <- viena_darba_personas |>
+  count(lemma, sort = TRUE, name = "pieminejumi") |>
+  slice_head(n = 20)
+
+top20
+```
+
+```{r}
+#| fig-width: 9
+#| fig-height: 6.5
+ggplot(top20, aes(x = reorder(lemma, pieminejumi), y = pieminejumi)) +
+  geom_col(fill = k_violets, width = 0.75) +
+  coord_flip() +
+  labs(title = "Kuri varoņi visbiežāk pieminēti romānā „Līgavu mednieki”?",
+       subtitle = "20 biežāk sastopamie personu nosaukumi",
+       x = "Varoņa vārds", y = "Pieminējumu skaits")
+```
+
+### Saglabājam personu nosaukumu sarakstu
+
+```{r}
+dir.create("output", showWarnings = FALSE)
+personu_saraksts <- viena_darba_personas |>
+  count(lemma, sort = TRUE, name = "pieminejumi") |>
+  rename(personas_nosaukums = lemma)
+
+write_csv(personu_saraksts, "output/ligavu_mednieki_personas.csv")
+if (requireNamespace("writexl", quietly = TRUE)) {
+  writexl::write_xlsx(personu_saraksts,
+                      "output/ligavu_mednieki_personas.xlsx")
+}
+```
+
+### Kā mainās varoņu klātbūtne romāna gaitā?
+
+Romānu sadalām desmit aptuveni vienādās daļās **pēc teikumu skaita**. Burbuļa lielums rāda, cik reižu varonis pieminēts konkrētajā daļā. Smalkās līnijas palīdz izsekot katram varonim; tās **pārtrūkst**, ja kādā daļā nav neviena pieminējuma.
+
+```{r}
+pozicijas <- viena_darba_personas |>
+  mutate(dala = pmin(10L,
+    floor((teikums - 1) / teikumu_skaits * 10) + 1L))
+
+galvenie_nosaukumi <- pozicijas |>
+  count(lemma, sort = TRUE) |>
+  slice_head(n = 8) |>
+  pull(lemma)
+
+burbuli <- pozicijas |>
+  filter(lemma %in% galvenie_nosaukumi) |>
+  count(lemma, dala, name = "pieminejumi") |>
+  complete(lemma = galvenie_nosaukumi, dala = 1:10,
+           fill = list(pieminejumi = 0)) |>
+  mutate(lemma = factor(lemma, levels = rev(galvenie_nosaukumi))) |>
+  arrange(lemma, dala) |>
+  group_by(lemma) |>
+  mutate(
+    ieprieksejais = lag(pieminejumi, default = 0L),
+    savienot = pieminejumi > 0 & ieprieksejais > 0
+  ) |>
+  ungroup()
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.5
+ggplot(burbuli, aes(x = dala, y = lemma)) +
+  geom_segment(data = ~ filter(.x, savienot),
+               aes(x = dala - 1, xend = dala, yend = lemma),
+               color = "#B27A99", linewidth = 0.9, alpha = 0.65) +
+  geom_point(data = ~ filter(.x, pieminejumi > 0),
+             aes(size = pieminejumi), color = k_korallis, alpha = 0.8) +
+  scale_x_continuous(breaks = 1:10) +
+  scale_size_area(max_size = 12) +
+  labs(title = "Kā romāna gaitā mainās varoņu klātbūtne?",
+       subtitle = "Anšlavs Eglītis, „Līgavu mednieki”",
+       x = "Romāna desmitdaļa", y = "Varonis", size = "Pieminējumu skaits") +
+  theme(panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank())
+```
+
+★ **Pētnieka piezīme.** Līnijas palīdz sekot nosaukumiem, bet nenozīmē, ka varonis nepārtraukti piedalās visās ainās. NER var arī kļūdīties. Šajā vingrinājumā pieņemam šos ierobežojumus, lai varētu iziet cauri pilnam neliela pētījuma procesam — no datiem līdz literārai interpretācijai.
