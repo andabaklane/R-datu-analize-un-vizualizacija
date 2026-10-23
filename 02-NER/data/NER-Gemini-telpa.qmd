@@ -1,0 +1,216 @@
+---
+title: "Literārā telpa 20 latviešu romānos: Gemini klasifikācijas dati"
+subtitle: "Praktiskā nodarbība RStudio · trīs vizualizācijas un patstāvīgs uzdevums"
+lang: lv
+format:
+  html:
+    toc: true
+    code-fold: false
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+---
+
+## Ko pētīsim?
+
+Izmantosim **tos pašus 20 romānus**, ko iepriekšējā NER nodarbībā, taču šoreiz analizēsim valodas modeļa **Gemini** sagatavotus datus. Modelis katram romānam ir izveidojis divus sarakstus:
+
+- `geographical_entities` — ģeogrāfiskie nosaukumi (`name`, `category`, `evidence`);
+- `spatial_terms` — vispārīgi telpas apzīmējumi (`lemma`, `category`, `evidence`).
+
+Telpas apzīmējumi ir iedalīti kategorijās `URBAN` (pilsētvide), `RURAL` (lauku vide), `NATURAL` (dabiskā vide) un `BUILT_ENVIRONMENT` (apbūvētā vide). Ģeogrāfiskajiem nosaukumiem izmantotas arī kategorijas `GPE` un `LOC`.
+
+**Svarīgi:** katrā JSON failā ir modeļa atlasīto apzīmējumu saraksts, nevis visu vārdu pieminējumu uzskaite. Tāpēc skaitīsim **atlasītos ierakstus un to izplatību romānos**, nevis pieminējumu biežumu tekstā. Modeļa klasifikācijā iespējamas kļūdas.
+
+## 1. Sagatavojam datus
+
+Atveriet projektu `02-NER` RStudio. Gemini faili atrodas projekta mapē `data/gemini/`, bet iepriekšējās nodarbības romānu saraksts — `data/romanu_izlase.csv`.
+
+Ja kāda pakotne nav instalēta, vienreiz izpildiet šo rindu, noņemot `#`:
+
+```{r}
+# install.packages(c("jsonlite", "dplyr", "tidyr", "ggplot2", "readr", "stringr", "purrr"))
+```
+
+```{r}
+library(jsonlite)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(stringr)
+library(purrr)
+theme_set(theme_minimal(base_size = 12))
+```
+
+Nākamā šūna atrod 20 Gemini failus, sasaista tos ar romānu nosaukumiem un izveido divas datu tabulas. Kodu mainīt nevajag.
+
+```{r}
+izlase <- read_csv("data/romanu_izlase.csv", show_col_types = FALSE,
+                   col_types = cols(id = col_character(), .default = col_guess()))
+faili <- list.files("data/gemini", pattern = "\\.json$", full.names = TRUE)
+
+failu_tabula <- tibble(
+  fails = faili,
+  id = str_match(basename(faili), "_([0-9]{5,8})_jd_v2")[, 2]
+) |>
+  left_join(izlase, by = "id")
+
+if (length(faili) == 0) stop("Mapē data/gemini nav JSON failu.")
+if (any(is.na(failu_tabula$id)) || any(is.na(failu_tabula$nosaukums)))
+  stop("Neizdevās sasaistīt kādu Gemini failu ar romānu izlasi.")
+if (anyDuplicated(failu_tabula$id)) stop("Vienam romānam ir vairāki Gemini faili.")
+if (nrow(failu_tabula) != 20)
+  stop("Gaidīti 20 Gemini faili, atrasti: ", nrow(failu_tabula))
+
+# Viena funkcija abiem JSON sarakstiem.
+izlasi_sarakstu <- function(fails, id, nosaukums, dala, lauks) {
+  dok <- fromJSON(fails, simplifyVector = FALSE)
+  ieraksti <- dok[[dala]]
+  if (length(ieraksti) == 0) return(tibble())
+  map_dfr(ieraksti, function(x) tibble(
+    id = id, darbs = nosaukums,
+    apzimejums = as.character(x[[lauks]] %||% NA_character_),
+    kategorija = as.character(x$category %||% NA_character_),
+    piemers = as.character(x$evidence %||% NA_character_)
+  ))
+}
+`%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
+
+telpa <- pmap_dfr(
+  failu_tabula |> select(fails, id, nosaukums),
+  function(fails, id, nosaukums)
+    izlasi_sarakstu(fails, id, nosaukums, "spatial_terms", "lemma")
+)
+vietvardi <- pmap_dfr(
+  failu_tabula |> select(fails, id, nosaukums),
+  function(fails, id, nosaukums)
+    izlasi_sarakstu(fails, id, nosaukums, "geographical_entities", "name")
+)
+
+# Saglabājam vienkāršus CSV failus, ko vēlāk varēs izmantot arī ar valodas modeli.
+dir.create("output", showWarnings = FALSE)
+write_csv(telpa, "output/gemini_telpa.csv")
+write_csv(vietvardi, "output/gemini_vietvardi.csv")
+
+cat("Romāni:", n_distinct(telpa$id), "\n")
+cat("Telpas apzīmējumu ieraksti:", nrow(telpa), "\n")
+cat("Ģeogrāfisko nosaukumu ieraksti:", nrow(vietvardi), "\n")
+```
+
+## 2. Pirmā vizualizācija: kādas telpas kategorijas dominē?
+
+**Jautājums:** kurām telpas kategorijām Gemini atlasījis visvairāk apzīmējumu visā 20 romānu izlasē?
+
+```{r}
+telpa |>
+  count(kategorija, name = "skaits") |>
+  ggplot(aes(x = reorder(kategorija, skaits), y = skaits)) +
+  geom_col(fill = "#268A9E") +
+  coord_flip() +
+  labs(title = "Gemini atlasītie telpas apzīmējumi",
+       subtitle = "20 romāni; skaitīti sarakstu ieraksti, nevis pieminējumi",
+       x = "Telpas kategorija", y = "Ierakstu skaits")
+```
+
+**Pārdomām:** vai liels apbūvētās vides apzīmējumu skaits nozīmē, ka romānu darbība galvenokārt risinās pilsētā? Kāpēc ne obligāti?
+
+## 3. Otrā vizualizācija: salīdzinām romānus
+
+**Jautājums:** kā atšķiras atlasīto telpas apzīmējumu kategoriju sadalījums dažādos romānos? Katras joslas daļas attēlo attiecīgās kategorijas **īpatsvaru romāna telpas apzīmējumu sarakstā**.
+
+```{r}
+telpa |>
+  count(darbs, kategorija) |>
+  group_by(darbs) |>
+  mutate(dala = n / sum(n)) |>
+  ungroup() |>
+  ggplot(aes(x = reorder(darbs, dala, FUN = sum), y = dala,
+             fill = kategorija)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(labels = function(x) paste0(round(x * 100), "%")) +
+  labs(title = "Telpas kategoriju īpatsvars katrā romānā",
+       x = NULL, y = "Daļa no atlasītajiem apzīmējumiem",
+       fill = "Kategorija") +
+  theme(legend.position = "bottom")
+```
+
+**Pārdomām:** salīdziniet divus romānus ar atšķirīgu sadalījumu. Vai šāda diagramma ļauj secināt, cik bieži attiecīgie vārdi parādās tekstā?
+
+## 4. Trešā vizualizācija: telpas vārdu siltumkarte
+
+**Jautājums:** kuri telpas apzīmējumi sastopami lielākajā skaitā dažādu romānu? Attēlojam 15 visplašāk izplatītos apzīmējumus. Krāsains laukums nozīmē, ka modelis attiecīgo vārdu ir iekļāvis konkrētā romāna sarakstā.
+
+```{r}
+top_vardi <- telpa |>
+  distinct(id, apzimejums) |>
+  count(apzimejums, name = "romanu_skaits", sort = TRUE) |>
+  slice_head(n = 15) |>
+  pull(apzimejums)
+
+siltumkarte <- telpa |>
+  filter(apzimejums %in% top_vardi) |>
+  distinct(darbs, apzimejums) |>
+  mutate(ir = "Ir") |>
+  complete(darbs = unique(failu_tabula$nosaukums),
+           apzimejums = top_vardi,
+           fill = list(ir = "Nav"))
+
+ggplot(siltumkarte,
+       aes(x = darbs, y = factor(apzimejums, levels = rev(top_vardi)),
+           fill = ir)) +
+  geom_tile(color = "white", linewidth = 0.3) +
+  scale_fill_manual(values = c("Ir" = "#268A9E", "Nav" = "#EEEEEE")) +
+  labs(title = "15 plašāk izplatītie telpas apzīmējumi",
+       subtitle = "Vai Gemini ir iekļāvis apzīmējumu romāna sarakstā?",
+       x = "Romāns", y = NULL, fill = NULL) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
+```
+
+**Pārdomām:** kurus vārdus varētu uzskatīt par vispārīgiem telpas apzīmējumiem, bet kuri vairāk raksturo noteiktu vidi? Atrodiet vienu iespējamu modeļa klasifikācijas kļūdu tabulā `telpa`.
+
+## 5. Patstāvīgais uzdevums: ceturtā vizualizācija ar valodas modeli
+
+**Pētnieciskais jautājums:** kuri **15 ģeogrāfiskie nosaukumi** sastopami vislielākajā skaitā **dažādu romānu**?
+
+Izveidojiet **horizontālu stabiņu diagrammu**, izmantojot R un `ggplot2`. Šoreiz vizualizācijas kodu palīdzēs uzrakstīt valodas modelis. Jums nav jāzina konkrēto R funkciju nosaukumi — svarīgi ir precīzi izskaidrot modelim uzdevumu, datus un vēlamo rezultātu.
+
+### Kas ir jūsu rīcībā?
+
+- RStudio projekts: `02-NER`.
+- Sagatavotais CSV fails: **`output/gemini_vietvardi.csv`**.
+- CSV kolonnas: `id` (romāna identifikators), `darbs` (romāna nosaukums), `apzimejums` (ģeogrāfiskais nosaukums), `kategorija`, `piemers`.
+- Iepriekšējie trīs koda piemēri šajā burtnīcā. Varat kādu no tiem nokopēt modelim kā paraugu.
+
+### Darbības
+
+1. RStudio projekta mapē atrodiet **`output/gemini_vietvardi.csv`**. Pievienojiet to sarunai ar izvēlēto valodas modeli.
+2. Izskaidrojiet modelim uzdevumu. Varat izmantot šo uzvedni vai formulēt savu:
+
+> Pievienoju failu `gemini_vietvardi.csv` ar Gemini atlasītiem ģeogrāfiskajiem nosaukumiem no 20 latviešu romāniem. Uzraksti vienkāršu R kodu ar `ggplot2`, kas attēlo 15 ģeogrāfiskos nosaukumus, kuri sastopami vislielākajā skaitā **dažādu romānu**. Vēlos horizontālu stabiņu diagrammu, sakārtotu pēc romānu skaita, ar nosaukumiem latviešu valodā. Fails manā RStudio projektā atrodas `output/gemini_vietvardi.csv`. Kodu ievietošu Quarto R šūnā. Skaiti romānus, nevis atkārtotus ierakstus.
+
+3. Ja nepieciešams, iedodiet modelim arī **vienu no iepriekšējām R koda šūnām** kā piemēru, kāda stila kodu jau lietojam.
+4. Nokopējiet saņemto **R kodu** zemāk esošajā tukšajā šūnā, **starp** šūnas sākuma un beigu atzīmēm. Ja modelis atgriež arī R koda šūnas sākuma un beigu atzīmes, tās nekopējiet vēlreiz.
+5. Izpildiet šūnu. Ja rodas kļūda, nokopējiet kļūdas paziņojumu modelim un lūdziet izlabot kodu.
+6. Pārbaudiet rezultātu: vai tiešām saskaitīti **dažādi romāni**, nevis pieminējumi? Vai diagrammā ir 15 nosaukumi un saprotamas asis?
+
+### Šeit ievietojiet modeļa ģenerēto kodu
+
+```{r}
+# Iekopējiet modeļa sagatavoto R kodu šeit.
+
+```
+
+### Īss komentārs par rezultātu
+
+Uzrakstiet 2–3 teikumus: kurš ģeogrāfiskais nosaukums sastopams visplašāk? Kas pārsteidz? Kādi ir šīs metodes ierobežojumi?
+
+**Jūsu komentārs:**
+
+...
+
+## Metodoloģiska piezīme
+
+Šie ir **Gemini modeļa sagatavoti saraksti**. Tie var būt nepilnīgi vai saturēt kļūdainus nosaukumus, lemmas un kategorijas. Ieraksta klātbūtne sarakstā nenozīmē, ka zinām, cik reizes tas pieminēts tekstā, un vietvārda pieminēšana vēl nenozīmē, ka tur norisinās romāna darbība. Diagrammas ir sākums interpretācijai, nevis galīgs pierādījums.
